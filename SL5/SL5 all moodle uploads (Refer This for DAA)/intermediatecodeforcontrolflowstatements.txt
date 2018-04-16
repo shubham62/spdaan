@@ -1,0 +1,477 @@
+// If-Else
+
+//ifte.l :
+
+ALPHA [A-Za-z]
+DIGIT [0-9]
+
+%%
+if                 			return IF;
+then                 		return THEN;
+else                 		return ELSE;
+{ALPHA}({ALPHA}|{DIGIT})*	return ID;
+{DIGIT}+             		{
+								yylval=atoi(yytext); 
+								return NUM;
+					 		}
+[ \t]                 		;
+\n                			yyterminate();
+.                 			return yytext[0];
+%%
+
+//ifte.y :
+
+%token ID NUM IF THEN ELSE
+%right '='
+%left '+' '-'
+%left '*' '/'
+%left UMINUS
+%%
+
+S : IF '(' E ')' {cond();} THEN E ';' {trueblk();} ELSE E ';' {falseblk();}
+  ;
+E : V '='{push();} E{codegen_assign();}
+  | E '+'{push();} E{codegen();}
+  | E '-'{push();} E{codegen();}
+  | E '*'{push();} E{codegen();}
+  | E '/'{push();} E{codegen();}
+  | '(' E ')'
+  | '-'{push();} E{codegen_umin();} %prec UMINUS
+  | V
+  | NUM{push();}
+  ;
+V : ID {push();}
+  ;
+%%
+
+#include "lex.yy.c"
+#include<ctype.h>
+char st[100][10];
+int top=0;
+char subscript[2]="0";
+char temp[2]="t";
+
+int label[20];
+int lnum=0;
+int ltop=0;
+
+main()
+{
+	printf("Enter the expression : ");
+	yyparse();
+}
+
+push()
+{
+	strcpy(st[++top],yytext);
+}
+
+codegen()
+{
+	strcpy(temp,"t");
+	strcat(temp,subscript);
+	printf("%s = %s %s %s\n",temp,st[top-2],st[top-1],st[top]);
+	top-=2;
+	strcpy(st[top],temp);
+	subscript[0]++;
+}
+
+codegen_umin()
+{
+	strcpy(temp,"t");
+	strcat(temp,subscript);
+	printf("%s = -%s\n",temp,st[top]);
+	top--;
+	strcpy(st[top],temp);
+	subscript[0]++;
+}
+
+codegen_assign()
+{
+	printf("%s = %s\n",st[top-2],st[top]);
+	top-=2;
+}
+
+cond()
+{
+	lnum++;
+	strcpy(temp,"t");
+	strcat(temp,subscript);
+	printf("%s = not %s\n",temp,st[top]);
+	printf("if %s goto L%d\n",temp,lnum);
+	subscript[0]++;
+	label[++ltop]=lnum;
+}
+
+trueblk()
+{
+	int x;
+	lnum++;
+	x=label[ltop--];
+	printf("goto L%d\n",lnum);
+	printf("L%d: \n",x);
+	label[++ltop]=lnum;
+}
+
+falseblk()
+{
+	int y;
+	y=label[ltop--];
+	printf("L%d: \n",y);
+}
+
+//output:
+
+ lex ifte.l
+ yacc ifte.y
+ gcc y.tab.c -ll -ly
+ ./a.out
+Enter the expression : if(k+8) then k=18;else c=s;
+t0 = k + 8
+t1 = not t0
+if t1 goto L1
+k = 18
+goto L2
+L1: 
+c = s
+L2: 
+
+
+                    
+
+//=========================================================================================================
+// While
+
+// while.l
+
+%{
+#include <stdio.h>
+#include <stdlib.h>
+#include "y.tab.h"
+int yylval;
+%}
+
+%option noyywrap
+
+ 
+%%
+while               { return WHILE; }
+[A-Za-z]([A-Za-z]|[0-9])*  {  return ID; }
+[0-9]+             {yylval=atoi(yytext); return NUM;}
+[ \t]                 ;
+\n               { yyterminate();}
+.                 { return yytext[0];}
+%%
+
+
+// while.y
+
+%{
+#include<ctype.h>
+#include<stdio.h>
+#include<stdlib.h>
+
+char st[100][10];
+int top=0;
+char i[2]="0";
+char temp[2]="t";
+
+int lnum=1;
+int start=1;
+
+void yyerror(char *msg);
+extern yytext;
+extern yylex();
+%}
+
+
+
+%token ID NUM WHILE
+%right '='
+%left '+' '-'
+%left '*' '/'
+%left UMINUS
+%start S
+%%
+
+S : WHILE{lab1();} '(' E ')'{lab2();} E ';'{lab3();}
+  ;
+E :V '='{push();} E{codegen_assign();}
+  | E '+'{push();} E{codegen();}
+  | E '-'{push();} E{codegen();}
+  | E '*'{push();} E{codegen();}
+  | E '/'{push();} E{codegen();}
+  | '(' E ')'
+  | '-'{push();} E{codegen_umin();} %prec UMINUS
+  | V
+  | NUM{push();}
+  ;
+V : ID {push();}
+  ;
+%%
+
+
+void yyerror(char *msg){
+	fprintf(stderr,"%s",msg);
+	exit(1);
+			}
+
+
+void main()
+ {
+ printf("Enter the expression : ");
+ yyparse();
+ }
+
+
+
+push()
+ {
+  strcpy(st[++top],yytext);
+ }
+
+codegen()
+ {
+ strcpy(temp,"t");
+ strcat(temp,i);
+  printf("%s = %s %s %s\n",temp,st[top-2],st[top-1],st[top]);
+  top-=2;
+ strcpy(st[top],temp);
+ i[0]++;
+ }
+
+codegen_umin()
+ {
+ strcpy(temp,"t");
+ strcat(temp,i);
+ printf("%s = -%s\n",temp,st[top]);
+ top--;
+ strcpy(st[top],temp);
+ i[0]++;
+ }
+
+codegen_assign()
+ {
+ printf("%s = %s\n",st[top-2],st[top]);
+ top-=2;
+ }
+
+
+
+lab1()
+{
+printf("L%d: \n",lnum++);
+}
+
+
+lab2()
+{
+ strcpy(temp,"t");
+ strcat(temp,i);
+ printf("%s = not %s\n",temp,st[top]);
+ printf("if %s goto L%d\n",temp,lnum);
+ i[0]++;
+ }
+
+lab3()
+{
+printf("goto L%d \n",start);
+printf("L%d: \n",lnum);
+}
+
+
+/* OUT PUT of while */
+
+[system-admin@localhost SP_AssignmentNo6]$ lex while.l
+[system-admin@localhost SP_AssignmentNo6]$ yacc -d while.y
+[system-admin@localhost SP_AssignmentNo6]$ cc lex.yy.c y.tab.c 
+while.y: In function ‘push’:
+while.y:62:3: warning: incompatible implicit declaration of built-in function ‘strcpy’ [enabled by default]
+while.y:62:3: warning: passing argument 2 of ‘strcpy’ makes pointer from integer without a cast [enabled by default]
+while.y:62:3: note: expected ‘const char *’ but argument is of type ‘int’
+while.y: In function ‘codegen’:
+while.y:67:2: warning: incompatible implicit declaration of built-in function ‘strcpy’ [enabled by default]
+while.y:68:2: warning: incompatible implicit declaration of built-in function ‘strcat’ [enabled by default]
+while.y: In function ‘codegen_umin’:
+while.y:77:2: warning: incompatible implicit declaration of built-in function ‘strcpy’ [enabled by default]
+while.y:78:2: warning: incompatible implicit declaration of built-in function ‘strcat’ [enabled by default]
+while.y: In function ‘lab2’:
+while.y:101:2: warning: incompatible implicit declaration of built-in function ‘strcpy’ [enabled by default]
+while.y:102:2: warning: incompatible implicit declaration of built-in function ‘strcat’ [enabled by default]
+[system-admin@localhost SP_AssignmentNo6]$ ./a.out 
+Enter the expression : while (a=p+q) i=i+1;
+L1: 
+t0 = p + q
+a = t0
+t1 = not a
+if t1 goto L0
+t2 = i + 1
+i = t2
+goto L1 
+L0: 
+[system-admin@localhost SP_AssignmentNo6]$ 
+
+//-----------------------------------------------------------------------------------------------------
+
+switch.l
+
+ALPHA [A-Za-z]
+DIGIT [0-9]
+%%
+switch                return SWITCH;
+case                 return CASE;
+break                 return BREAK;
+default                return DEFAULT;
+{ALPHA}({ALPHA}|{DIGIT})*    return ID;
+{DIGIT}+             {yylval=atoi(yytext); return NUM;}
+[ \t]                 ;
+\n                yyterminate();
+.                 return yytext[0];
+%%
+//=========================================================================================================
+// Switch Case
+
+switch.y
+
+%token ID NUM SWITCH BREAK CASE DEFAULT
+%right '='
+%left '+' '-'
+%left '*' '/'
+%left UMINUS
+%%
+
+S:SWITCH'('ID')''{'B'}';
+
+B:C | C D;
+
+C:C C| CASE E {lab1();} ':'E';'{lab2();} |BREAK';';
+
+D: DEFAULT':' E ';'{def();} BREAK';'{lab3();};
+
+E :V '='{push();} E{codegen_assign();}
+  | E '+'{push();} E{codegen();}
+  | E '-'{push();} E{codegen();}
+  | E '*'{push();} E{codegen();}
+  | E '/'{push();} E{codegen();}
+  | '(' E ')'
+  | '-'{push();} E{codegen_umin();} %prec UMINUS
+  | V
+  | NUM{push();}
+  ;
+V : ID {push();}
+  ;
+%%
+
+#include "lex.yy.c"
+#include<ctype.h>
+char st[100][10];
+int top=0;
+char i_[2]="0";
+char temp[2]="t";
+
+int label[20];
+int lnum=0;
+int ltop=0;
+
+main()
+ {
+ printf("Enter the expression : \n");
+ yyparse();
+
+ }
+
+push()
+ {
+  strcpy(st[++top],yytext);
+ }
+
+codegen()
+ {
+ strcpy(temp,"t");
+ strcat(temp,i_);
+  printf("%s = %s %s %s\n",temp,st[top-2],st[top-1],st[top]);
+  top-=2;
+ strcpy(st[top],temp);
+ i_[0]++;
+ }
+
+codegen_umin()
+ {
+ strcpy(temp,"t");
+ strcat(temp,i_);
+ printf("%s = -%s\n",temp,st[top]);
+ top--;
+ strcpy(st[top],temp);
+ i_[0]++;
+ }
+
+codegen_assign()
+ {
+ printf("%s = %s\n",st[top-2],st[top]);
+ top-=2;
+ }
+
+lab1()
+{
+ lnum++;
+ strcpy(temp,"t");
+ strcat(temp,i_);
+ printf("%s = not %s\n",temp,st[top]);
+ printf("if %s goto L%d\n",temp,lnum);
+ i_[0]++;
+ label[++ltop]=lnum;
+}
+
+def()
+{
+int x;
+lnum++;
+x=label[ltop--];
+label[++ltop]=lnum;
+}
+
+
+lab2()
+{
+int x;
+lnum++;
+x=label[ltop--];
+printf("goto EXIT\n");
+printf("L%d: \n",x);
+label[++ltop]=lnum;
+}
+
+lab3()
+{
+printf("EXIT:exit()\n");
+}
+
+
+/*
+------------------------------------------------------------------------------------------------
+OUTPUT::
+
+hasna@ubuntu:~/Desktop$ lex switch.l
+hasna@ubuntu:~/Desktop$ yacc -d switch.y
+switch.y: warning: 2 shift/reduce conflicts [-Wconflicts-sr]
+hasna@ubuntu:~/Desktop$ gcc y.tab.c -ly -ll
+hasna@ubuntu:~/Desktop$ ./a.out
+Enter the expression : 
+switch(a){ case 1:a=1; break; case 2:a=2; break; default:a=0; break; }
+t0 = not 1
+if t0 goto L1
+a = 1
+goto EXIT
+L1: 
+t1 = not 2
+if t1 goto L3
+a = 2
+goto EXIT
+L3: 
+a = 0
+EXIT:exit()
+
+*/]
+
+//=========================================================================================================
+

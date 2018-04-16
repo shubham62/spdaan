@@ -1,0 +1,21 @@
+Output:
+
+lex intif.l
+yacc intif.y
+gcc y.tab.c -ll -ly
+./a.out
+
+Enter the expression : if(k+8) then k=18;else c=s;
+t0 = k + 8         | codegen (E+E) for k+8
+
+t1 = not t0        |
+if t1 goto L1      |  lab1()
+
+k = 18             | codegen_assign() 
+
+goto L2		   |	
+L1: 		   | lab2()	
+
+c = s              | codegen_assign()
+
+L2:                | lab3()  
